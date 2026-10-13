@@ -1,0 +1,1 @@
+# Assets\n\nPlace the prototype media files here:\n\n- `poster.jpg`\n- `survival-scroll.mp4`\n\nThe page already references these exact paths.\n
