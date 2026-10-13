@@ -46,7 +46,7 @@ button { color: inherit; font: inherit; }
   height: 100%;
   object-fit: cover;
   object-position: center;
-  filter: saturate(.84) contrast(1.05) brightness(.74) hue-rotate(-4deg);
+  filter: saturate(.9) brightness(.78);
   transform: translateZ(-40px) scale(1.05);
   will-change: filter, transform;
 }
