@@ -8,12 +8,17 @@
   const root = document.documentElement;
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SEEK_FPS = 30;
+  const SEEK_INTERVAL = 1000 / SEEK_FPS;
+  const MIN_SEEK_DELTA = 1 / SEEK_FPS;
+
   let target = 0;
   let current = 0;
-  let duration = 28.3;
   let started = false;
   let rafId = 0;
-  let lastSeek = -1;
+  let desiredTime = 0;
+  let seekBusy = false;
+  let lastSeekAt = 0;
 
   const scenes = [
     { at: 0.00, label: 'ENVIRONMENT 01 / FOREST', index: '01' },
@@ -40,10 +45,11 @@
   function setScene(p) {
     let active = scenes[0];
     for (const scene of scenes) if (p >= scene.at) active = scene;
+
     if (sceneLabel.textContent !== active.label) {
       sceneLabel.animate(
         [{ opacity: .15, transform: 'translateY(5px)' }, { opacity: 1, transform: 'translateY(0)' }],
-        { duration: 360, easing: 'ease-out' }
+        { duration: 260, easing: 'ease-out' }
       );
       sceneLabel.textContent = active.label;
       sceneIndex.textContent = active.index;
@@ -58,31 +64,54 @@
     setScene(p);
   }
 
-  function seekVideo(p) {
-    if (!Number.isFinite(video.duration) || video.readyState < 2) return;
-    const t = clamp(p) * Math.max(0, video.duration - 0.05);
-    if (Math.abs(t - lastSeek) > 0.012) {
-      video.currentTime = t;
-      lastSeek = t;
-    }
+  function canSeek() {
+    return Number.isFinite(video.duration) && video.duration > 0 && video.readyState >= 2;
   }
 
-  function frame() {
-    const ease = reduceMotion ? 1 : 0.085;
-    current = lerp(current, target, ease);
-    if (Math.abs(target - current) < 0.00004) current = target;
+  function queueSeek(p) {
+    if (!canSeek()) return;
+    desiredTime = clamp(p) * Math.max(0, video.duration - 0.04);
+  }
 
-    seekVideo(current);
+  function flushSeek(now) {
+    if (!canSeek() || seekBusy) return;
+    if (now - lastSeekAt < SEEK_INTERVAL) return;
+
+    const delta = Math.abs(desiredTime - video.currentTime);
+    if (delta < MIN_SEEK_DELTA * 0.55) return;
+
+    seekBusy = true;
+    lastSeekAt = now;
+    video.currentTime = desiredTime;
+  }
+
+  video.addEventListener('seeked', () => {
+    seekBusy = false;
+  });
+
+  function frame(now) {
+    const ease = reduceMotion ? 1 : 0.105;
+    current = lerp(current, target, ease);
+    if (Math.abs(target - current) < 0.00005) current = target;
+
+    queueSeek(current);
+    flushSeek(now);
     updateHUD(current);
     rafId = requestAnimationFrame(frame);
   }
 
   video.addEventListener('loadedmetadata', () => {
-    duration = video.duration || duration;
-    const play = video.play();
-    if (play?.then) play.then(() => video.pause()).catch(() => {});
-    readScroll();
-    seekVideo(target);
+    const playPromise = video.play();
+    if (playPromise?.then) {
+      playPromise.then(() => {
+        video.pause();
+        readScroll();
+        queueSeek(target);
+      }).catch(() => {
+        readScroll();
+        queueSeek(target);
+      });
+    }
   }, { once: true });
 
   addEventListener('scroll', readScroll, { passive: true });
@@ -102,7 +131,10 @@
 
   addEventListener('visibilitychange', () => {
     if (document.hidden) cancelAnimationFrame(rafId);
-    else { cancelAnimationFrame(rafId); rafId = requestAnimationFrame(frame); }
+    else {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(frame);
+    }
   });
 
   readScroll();
