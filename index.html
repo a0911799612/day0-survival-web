@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#102729" />
+  <title>DAY 0 — Taiwan Survival Project</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main id="experience" aria-label="求生互動式開場">
+    <section class="scroll-space" aria-hidden="true"></section>
+
+    <div class="stage" id="stage">
+      <div class="camera-shell" id="cameraShell">
+        <video
+          id="heroVideo"
+          class="hero-video"
+          muted
+          playsinline
+          preload="auto"
+          poster="./assets/poster.jpg"
+          aria-hidden="true"
+        >
+          <source src="./assets/survival-scroll.mp4" type="video/mp4" />
+        </video>
+
+        <div class="cinema-layer cinema-layer--fog"></div>
+        <div class="cinema-layer cinema-layer--vignette"></div>
+        <div class="cinema-layer cinema-layer--grain"></div>
+
+        <header class="topbar hud-layer hud-layer--near">
+          <a class="mark" href="#" aria-label="回到開場">△</a>
+          <div class="top-path">SURVIVAL <i>/</i> LEARN <i>/</i> LIVE</div>
+          <nav class="nav" aria-label="主要導覽">
+            <a href="#about">ABOUT</a><i>/</i><a href="#guide">GUIDE</a><i>/</i><a href="#start">START</a>
+            <button class="menu" type="button" aria-label="開啟選單"><span></span><span></span><span></span></button>
+          </nav>
+        </header>
+
+        <aside class="project-tag hud-layer hud-layer--mid">
+          <span>TAIWAN</span><span>SURVIVAL</span><span>PROJECT</span>
+        </aside>
+
+        <section class="hero-copy hud-layer hud-layer--near" aria-live="polite">
+          <div class="scrape-line"></div>
+          <p class="eyebrow" id="sceneLabel">ENVIRONMENT 01 / FOREST</p>
+          <h1>DAY 0</h1>
+          <p class="subtitle">當文明暫停，你，準備好了嗎？</p>
+          <div class="micro-copy"><span>SURVIVE</span><i>/</i><span>LEARN</span><i>/</i><span>REBUILD</span></div>
+        </section>
+
+        <aside class="manifesto hud-layer hud-layer--far">
+          <span>不是災難教育，</span>
+          <span>而是——</span>
+          <span>讓你在失去依賴的世界，</span>
+          <span>依然活下去。</span>
+        </aside>
+
+        <div class="scene-index hud-layer hud-layer--far" id="sceneIndex">01</div>
+
+        <div class="scroll-hint" id="scrollHint">
+          <div class="mouse-icon" aria-hidden="true"><span></span></div>
+          <div class="wheel-arrow" aria-hidden="true">⌄</div>
+          <p>SCROLL TO MOVE</p>
+          <small>使用滑鼠滾輪推進場景</small>
+        </div>
+
+        <div class="progress-rail" aria-hidden="true">
+          <span class="progress-dot"></span>
+          <span class="progress-fill" id="progressFill"></span>
+          <span class="progress-readout" id="progressReadout">00</span>
+        </div>
+
+        <div class="coord hud-layer hud-layer--mid">23.5°N / 121.0°E<br />TAIWAN</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>
