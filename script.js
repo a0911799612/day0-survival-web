@@ -1,142 +1,44 @@
-(() => {
-  const video = document.querySelector('#heroVideo');
-  const scrollHint = document.querySelector('#scrollHint');
-  const progressFill = document.querySelector('#progressFill');
-  const progressReadout = document.querySelector('#progressReadout');
-  const sceneLabel = document.querySelector('#sceneLabel');
-  const sceneIndex = document.querySelector('#sceneIndex');
-  const root = document.documentElement;
-
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const SEEK_FPS = 30;
-  const SEEK_INTERVAL = 1000 / SEEK_FPS;
-  const MIN_SEEK_DELTA = 1 / SEEK_FPS;
-
-  let target = 0;
-  let current = 0;
-  let started = false;
-  let rafId = 0;
-  let desiredTime = 0;
-  let seekBusy = false;
-  let lastSeekAt = 0;
-
-  const scenes = [
-    { at: 0.00, label: 'ENVIRONMENT 01 / FOREST', index: '01' },
-    { at: 0.15, label: 'ENVIRONMENT 02 / FIRE', index: '02' },
-    { at: 0.34, label: 'ENVIRONMENT 03 / COAST', index: '03' },
-    { at: 0.58, label: 'ENVIRONMENT 04 / DEEP WATER', index: '04' },
-    { at: 0.88, label: 'ENVIRONMENT 05 / CITY', index: '05' }
-  ];
-
-  function clamp(v, a = 0, b = 1) { return Math.min(b, Math.max(a, v)); }
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
-  function readScroll() {
-    const max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
-    target = clamp(scrollY / max);
-  }
-
-  function hideHint() {
-    if (started) return;
-    started = true;
-    scrollHint.classList.add('is-hidden');
-  }
-
-  function setScene(p) {
-    let active = scenes[0];
-    for (const scene of scenes) if (p >= scene.at) active = scene;
-
-    if (sceneLabel.textContent !== active.label) {
-      sceneLabel.animate(
-        [{ opacity: .15, transform: 'translateY(5px)' }, { opacity: 1, transform: 'translateY(0)' }],
-        { duration: 260, easing: 'ease-out' }
-      );
-      sceneLabel.textContent = active.label;
-      sceneIndex.textContent = active.index;
-    }
-  }
-
-  function updateHUD(p) {
-    const pct = Math.round(p * 100);
-    progressFill.style.height = `${pct}%`;
-    progressReadout.style.top = `calc(${pct}% - 7px)`;
-    progressReadout.textContent = String(pct).padStart(2, '0');
-    setScene(p);
-  }
-
-  function canSeek() {
-    return Number.isFinite(video.duration) && video.duration > 0 && video.readyState >= 2;
-  }
-
-  function queueSeek(p) {
-    if (!canSeek()) return;
-    desiredTime = clamp(p) * Math.max(0, video.duration - 0.04);
-  }
-
-  function flushSeek(now) {
-    if (!canSeek() || seekBusy) return;
-    if (now - lastSeekAt < SEEK_INTERVAL) return;
-
-    const delta = Math.abs(desiredTime - video.currentTime);
-    if (delta < MIN_SEEK_DELTA * 0.55) return;
-
-    seekBusy = true;
-    lastSeekAt = now;
-    video.currentTime = desiredTime;
-  }
-
-  video.addEventListener('seeked', () => {
-    seekBusy = false;
-  });
-
-  function frame(now) {
-    const ease = reduceMotion ? 1 : 0.105;
-    current = lerp(current, target, ease);
-    if (Math.abs(target - current) < 0.00005) current = target;
-
-    queueSeek(current);
-    flushSeek(now);
-    updateHUD(current);
-    rafId = requestAnimationFrame(frame);
-  }
-
-  video.addEventListener('loadedmetadata', () => {
-    const playPromise = video.play();
-    if (playPromise?.then) {
-      playPromise.then(() => {
-        video.pause();
-        readScroll();
-        queueSeek(target);
-      }).catch(() => {
-        readScroll();
-        queueSeek(target);
-      });
-    }
-  }, { once: true });
-
-  addEventListener('scroll', readScroll, { passive: true });
-  addEventListener('wheel', hideHint, { passive: true, once: true });
-  addEventListener('touchstart', hideHint, { passive: true, once: true });
-  addEventListener('keydown', (e) => {
-    if (['ArrowDown','ArrowUp','PageDown','PageUp',' ','Home','End'].includes(e.key)) hideHint();
-  }, { once: true });
-
-  addEventListener('pointermove', (e) => {
-    if (reduceMotion) return;
-    const mx = (e.clientX / innerWidth - .5) * 2;
-    const my = (e.clientY / innerHeight - .5) * 2;
-    root.style.setProperty('--mx', mx.toFixed(3));
-    root.style.setProperty('--my', my.toFixed(3));
-  }, { passive: true });
-
-  addEventListener('visibilitychange', () => {
-    if (document.hidden) cancelAnimationFrame(rafId);
-    else {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(frame);
-    }
-  });
-
-  readScroll();
-  rafId = requestAnimationFrame(frame);
-})();
+import { DAY0_CONTENT as C } from './content.js';
+const $=s=>document.querySelector(s), app=$('#experience'), world=$('#world'), scene=$('#scene');
+let view='outside',busy=false,bookType='principle',page=0,channel=0,lights=true,activeTool='',toolStep=0,compassAngle=0,lastFocus=null;
+let sound=false,motion=!matchMedia('(prefers-reduced-motion: reduce)').matches,hints=true,audioCtx,windGain,audioNodes=[],toastTimer;
+try { const p=JSON.parse(localStorage.getItem('day0-preferences')||'{}');motion=p.motion??motion;hints=p.hints??true; } catch {}
+const save=()=>{try{localStorage.setItem('day0-preferences',JSON.stringify({motion,hints}))}catch{}};
+const scenes={outside:{src:'outside',title:'星空營地',index:'00 / BASE CAMP',hint:'從零開始，重新學會觀察。',alt:'星空森林中的營地，右側帳篷透出溫暖燈光'},room:{src:'room',title:'帳篷研究桌',index:'01 / FIELD STATION',hint:'翻開一本書，或點選牆上的工具。',alt:'帳篷內的木製研究桌，左側工具牆、桌上筆記與書本、右側復古電視'},tools:{src:'tools',title:'工具觀察牆',index:'02 / EQUIPMENT',hint:'選擇一件工具，靠近一點觀察。',alt:'掛著指南針、繩索、斧頭、手電筒與望遠鏡的木製工具牆'},tv:{src:'television',title:'四大地形',index:'03 / TERRAIN CHANNEL',hint:'轉動頻道，認識不同環境。',alt:'營地中的復古電視與右側油燈'}};
+const spots={
+ outside:[['enter','走進帳篷',78,58]],
+ room:[['tools','探索工具牆',10,37],['notebook','求生技能筆記',36.5,79],['principle','翻開 333 手冊',56,80],['tv','四大地形電視',88,49],['light','開關燈具',20.5,49]],
+ tools:[['compass','指南針',35.5,45],['rope','繩索',45.5,48],['flashlight','手電筒',65,36],['binoculars','望遠鏡',62,64],['axe','營地斧',56,43],['carabiner','掛扣',35.5,63],['pouch','隨身收納包',24,53],['light','開關燈具',84,61]],
+ tv:[['prev','上一頻道',30.2,69],['next','下一頻道',64,69],['light','開關燈具',90,52]]
+};
+function showToast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2400)}
+function updatePreferences(){document.body.classList.toggle('reduced-motion',!motion);app.classList.toggle('hints-off',!hints);for(const [id,value] of [['motion',motion],['hints',hints],['sound',sound]]){$('#'+id).setAttribute('aria-pressed',value);$('#'+id+' b').textContent=value?'開':'關'}save()}
+function renderSpots(){const host=$('#hotspots');host.replaceChildren();for(const [action,label,x,y] of spots[view]){const b=document.createElement('button');b.className='hotspot';b.dataset.action=action;b.style.left=x+'%';b.style.top=y+'%';b.setAttribute('aria-label',label);b.innerHTML='<span class="dot" aria-hidden="true"></span><span class="tag">'+label+'</span>';b.addEventListener('click',()=>act(action));host.append(b)}}
+function currentNav(id){document.querySelectorAll('[data-nav]').forEach(b=>{const on=b.dataset.nav===id;b.classList.toggle('active',on);on?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current')})}
+function renderView(){app.dataset.view=view;scene.alt=scenes[view].alt;$('#entrance').hidden=view!=='outside';$('#entrance').classList.remove('exiting');$('#room-label').hidden=view==='outside';$('#scene-title').textContent=scenes[view].title;$('#scene-index').textContent=scenes[view].index;$('#scene-hint').textContent=scenes[view].hint;$('#back').hidden=view==='outside';$('#back').textContent=view==='room'?'← 返回營地':'← 返回研究桌';$('#tv-screen').hidden=view!=='tv';$('#tv-controls').hidden=view!=='tv';$('#status-text').textContent=view==='outside'?'營地已就緒':view==='room'?'正在探索研究站':view==='tools'?'工具觀察中':'地形訊號接收中';app.classList.toggle('lights-off',view!=='outside'&&!lights);world.style.setProperty('--lamp-x',view==='tools'?'84%':view==='tv'?'90%':'20%');world.style.setProperty('--lamp-y',view==='tools'?'61%':view==='tv'?'52%':'49%');renderSpots();if(view==='tv')renderChannel();currentNav(view);}
+const wait=ms=>new Promise(r=>setTimeout(r,motion?ms:0));
+async function go(next){if(busy||!scenes[next])return false;if(view===next)return true;busy=true;app.setAttribute('aria-busy','true');$('#hotspots').classList.add('muted');world.classList.remove('arriving');if(view==='outside')$('#entrance').classList.add('exiting');world.style.setProperty('--origin',view==='outside'?'78% 58%':next==='tools'?'13% 42%':next==='tv'?'88% 49%':'50% 50%');world.classList.add('leaving');tick(160,.025);await wait(420);const image=new Image();image.src='assets/'+scenes[next].src+'.webp';try{await image.decode()}catch{showToast('場景載入失敗，請重新整理後再試。');busy=false;world.classList.remove('leaving');$('#hotspots').classList.remove('muted');app.removeAttribute('aria-busy');return false}scene.src=image.src;view=next;renderView();world.classList.remove('leaving');world.classList.add('arriving');await wait(350);$('#hotspots').classList.remove('muted');busy=false;app.removeAttribute('aria-busy');return true}
+async function act(action){if(busy)return;if(action==='enter')return go('room');if(action==='light'){lights=!lights;app.classList.toggle('lights-off',!lights);tick(lights?500:260,.04);showToast(lights?'燈光已開啟':'燈光已關閉');return}if(action==='prev'||action==='next')return changeChannel(action==='next'?1:-1);if(action==='principle'||action==='notebook'){if(await go('room'))openBook(action);return}if(scenes[action])return go(action);openTool(action)}
+$('#start').onclick=()=>act('enter');document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>act(b.dataset.nav));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));$('#back').onclick=()=>go(view==='room'?'outside':'room');$('#help-btn').onclick=()=>openDialog('help-dialog');$('#hints').onclick=()=>{hints=!hints;updatePreferences()};$('#motion').onclick=()=>{motion=!motion;world.style.setProperty('--px','0px');world.style.setProperty('--py','0px');updatePreferences()};$('#sound').onclick=()=>{sound=!sound;if(sound)initAudio();if(windGain)windGain.gain.setTargetAtTime(sound?.018:0,audioCtx.currentTime,.5);updatePreferences();showToast(sound?'環境聲音已開啟':'聲音已關閉')};
+let targetX=0,targetY=0,x=0,y=0,raf=0;function drift(){x+=(targetX-x)*.07;y+=(targetY-y)*.07;world.style.setProperty('--px',x.toFixed(2)+'px');world.style.setProperty('--py',y.toFixed(2)+'px');if(Math.abs(x-targetX)+Math.abs(y-targetY)>.03)raf=requestAnimationFrame(drift);else raf=0}app.addEventListener('pointermove',e=>{if(!motion||e.pointerType==='touch'||innerWidth<600||busy||document.querySelector('dialog[open]'))return;targetX=(e.clientX/innerWidth-.5)*-12;targetY=(e.clientY/innerHeight-.5)*-8;if(!raf)raf=requestAnimationFrame(drift)});app.addEventListener('pointerleave',()=>{targetX=targetY=0;if(motion&&!raf)raf=requestAnimationFrame(drift)});
+function openDialog(id){lastFocus=document.activeElement;$('#'+id).showModal();tick(280,.025)}function closeDialog(id){$('#'+id).close()}document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeDialog(b.dataset.close));document.querySelectorAll('dialog').forEach(d=>{d.addEventListener('close',()=>{currentNav(view);lastFocus?.focus({preventScroll:true})});d.addEventListener('click',e=>{if(e.target!==d)return;const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()})});
+const drawings={shelter:'<path d="M20 90 100 12l80 78H20ZM100 12v78m-40 0 40-55 40 55M8 100h184M30 20l5 15m130-15 5 15M15 46l4 12"/>',water:'<path d="M100 8C95 24 55 58 55 80a45 45 0 0 0 90 0c0-22-40-56-45-72ZM73 76c-5 20 9 31 20 31M30 118c25-8 35 8 60 0s35 8 65 0"/>',food:'<path d="M70 108C65 70 80 28 110 10M82 71c-28 2-40-13-37-30 24 0 39 12 37 30Zm11-27c0-24 14-35 32-31 0 23-13 36-32 31Zm-18 47c-24 7-40-2-43-20 22-8 38 0 43 20Zm14-27c24 3 39-7 40-24-23-4-38 7-40 24Z"/>',plants:'<path d="M100 110V12M100 75C60 75 45 50 48 27c35 3 54 19 52 48Zm0-15c38 0 52-24 47-47-34 6-49 23-47 47ZM100 100C65 99 60 83 61 68c28 2 38 12 39 32Z"/>',snakes:'<path d="M42 92c-25-30 16-44 42-35 55 20 87 6 73-19-8-14-40-14-50 0-11 16 18 21 28 13M41 92c21 23 49 16 75 11 38-8 57 2 53 15M135 50l12 6m0 0 8-6m-8 6 5 8"/><circle cx="125" cy="41" r="2"/>',knots:'<path d="M10 85c30 0 55-70 90-65 35 5 25 73-10 73-37 0-32-60 8-57 27 2 50 67 93 62M10 95c30 0 55-70 90-65 20 3 12 53-10 53-22 0-18-40 8-37 27 2 50 67 93 62"/>'};
+function sourceLinks(ids=[]){return ids.map(id=>C.sources.find(s=>s.id===id)).filter(Boolean).map(s=>'<a href="'+s.url+'" target="_blank" rel="noopener noreferrer">'+s.organization+' ↗</a>').join('')}
+function openBook(type){bookType=type;page=0;renderBook();currentNav(type);openDialog('book-dialog')}
+function renderBook(){const terrain=bookType==='terrain';const data=terrain?{title:'地形觀察手冊',pages:C.terrains.map(t=>({id:t.id,number:t.channel,category:t.english,marker:t.title,title:t.mood,lead:t.focus,body:t.text,steps:[],takeaway:t.action,sources:t.sources}))}:C[bookType];const p=data.pages[page];$('#book-category').textContent=p.category;$('#book-marker').textContent=p.marker||p.number;$('#book-title').textContent=p.title;$('#book-lead').textContent=p.lead;$('#book-label').textContent=data.title+' / '+p.number;$('#book-illustration').innerHTML='<svg viewBox="0 0 200 130">'+(drawings[p.id]||drawings.shelter)+'</svg>';$('#book-copy').innerHTML='<p>'+p.body+'</p>'+(p.steps?.length?'<ol>'+p.steps.map(s=>'<li>'+s+'</li>').join('')+'</ol>':'')+'<p class="takeaway">'+p.takeaway+'</p>'+(bookType==='principle'?'<p class="safety-note">'+C.principle.note+'</p>':'')+'<div class="source-links">'+sourceLinks(p.sources)+'</div>';$('#page-count').textContent=String(page+1).padStart(2,'0')+' / '+String(data.pages.length).padStart(2,'0');$('#prev-page').disabled=page===0;$('#next-page').disabled=page===data.pages.length-1;$('#book').classList.remove('turning');void $('#book').offsetWidth;$('#book').classList.add('turning')}
+function turnPage(delta){const max=bookType==='terrain'?C.terrains.length:C[bookType].pages.length;const next=Math.min(max-1,Math.max(0,page+delta));if(next!==page){page=next;renderBook();tick(180,.02)}}$('#prev-page').onclick=()=>turnPage(-1);$('#next-page').onclick=()=>turnPage(1);
+function renderChannel(){const t=C.terrains[channel],screen=$('#tv-screen');screen.className='tv-screen '+t.id;screen.innerHTML='<span class="channel">CH '+t.channel+'</span><span class="live">● ON AIR</span><h2>'+t.title+'</h2><span class="terrain-en">'+t.english+'</span><p>'+t.mood+'<br>'+t.focus+'</p><button id="terrain-read">閱讀環境筆記 ↗</button>';$('#terrain-read').onclick=()=>{bookType='terrain';page=channel;renderBook();openDialog('book-dialog')};$('#channel-number').textContent=t.channel;screen.setAttribute('aria-label','第 '+(channel+1)+' 頻道：'+t.title);screen.classList.add('tuning')}
+function changeChannel(delta){channel=(channel+delta+4)%4;renderChannel();tick(120+channel*90,.07)}$('#prev-channel').onclick=()=>changeChannel(-1);$('#next-channel').onclick=()=>changeChannel(1);
+const extras={binoculars:{id:'binoculars',name:'望遠鏡',english:'BINOCULARS',description:'不必靠近，也能觀察遠處地形。試著調整放大倍率，看看視野如何改變。',instruction:'拖動倍率，觀察遠方山景。',takeaway:'此為畫面縮放示意；請勿用望遠鏡直視太陽。'},axe:{id:'axe',name:'營地斧',english:'CAMP AXE',description:'先認識斧刃、斧柄與保護套。收納與搬運時，讓刃部保持有保護的狀態。',instruction:'點選按鈕，觀察各部位。',takeaway:'這裡只提供部位認識；實際使用需要合適環境與熟悉操作的成人指導。'},carabiner:{id:'carabiner',name:'裝備掛扣',english:'GEAR CLIP',description:'用於整理與連接輕量裝備的小工具。掛扣的用途與承重能力，應以產品標示為準。',instruction:'切換示意，確認開口與閉合狀態。',takeaway:'一般裝備掛扣不可當成攀登或救援器材。'},pouch:{id:'pouch',name:'隨身收納包',english:'FIELD POUCH',description:'把常用的小物放在固定位置，讓需要時能快速找到。',instruction:'點選項目，練習出發前檢查。',takeaway:'示範清單不等於完整緊急避難包；請依活動與自身需求準備。'}};
+const toolCrops={flashlight:[.59,.22,.12,.26],compass:[.29,.34,.13,.22],rope:[.39,.16,.13,.6],binoculars:[.54,.5,.16,.23],axe:[.49,.18,.15,.46],carabiner:[.29,.54,.13,.24],pouch:[.16,.4,.18,.28]};
+function openTool(id){const t=C.tools.find(t=>t.id===id)||extras[id];if(!t)return;activeTool=id;toolStep=0;$('#tool-name').textContent=t.name;$('#tool-english').textContent=t.english;$('#tool-description').textContent=t.description;$('#tool-instruction').textContent=t.instruction;$('#tool-note').textContent=t.takeaway;$('#tool-image').src='assets/tool-'+id+'.webp';$('#tool-image').alt=t.name+'放大觀察';$('#tool-image').style.transform='';$('#tool-demo').innerHTML='';$('#tool-actions').innerHTML='';if(id==='flashlight'){$('#tool-demo').innerHTML='<div class="flashlight-beam" id="beam"></div>';$('#tool-actions').innerHTML='<button class="primary" id="flash-power" aria-pressed="false">開啟照明</button>';$('#flash-power').onclick=e=>{const on=$('#beam').classList.toggle('on');e.currentTarget.setAttribute('aria-pressed',on);e.currentTarget.textContent=on?'關閉照明':'開啟照明';tick(430,.03)}}else if(id==='compass'){$('#tool-demo').innerHTML='<div class="compass"><span class="east">E</span><span class="west">W</span><div class="needle" id="needle"></div></div>';$('#tool-actions').innerHTML='<label for="compass-angle">旋轉盤面：<span id="angle">0</span>°</label><input id="compass-angle" type="range" min="0" max="360" value="0">';$('#compass-angle').oninput=e=>{compassAngle=+e.target.value;$('#angle').textContent=compassAngle;$('.compass').style.transform='translate(-50%,-50%) rotate('+compassAngle+'deg)';$('#needle').style.transform='rotate('+(-compassAngle)+'deg)'}}else if(id==='rope'){$('#tool-demo').innerHTML='<div class="rope-demo" id="rope-demo"></div><div class="tool-step-label" id="rope-label"></div>';$('#tool-actions').innerHTML='<button class="primary" id="rope-next">查看下一步 →</button>';renderRope();$('#rope-next').onclick=()=>{toolStep=(toolStep+1)%3;renderRope()}}else if(id==='binoculars'){$('#tool-image').src='assets/outside.webp';$('#tool-demo').innerHTML='<div class="bino-lens"></div>';$('#tool-actions').innerHTML='<label for="zoom">放大倍率：<span id="zoom-label">1</span>×</label><input id="zoom" type="range" min="1" max="3" step=".1" value="1">';$('#zoom').oninput=e=>{$('#tool-image').style.transform='scale('+e.target.value+')';$('#zoom-label').textContent=e.target.value}}else if(id==='axe'){$('#tool-actions').innerHTML='<button class="primary" id="axe-part">認識斧刃 →</button><p id="part-description"></p>';const parts=['斧刃｜保持保護套完整，避免直接觸碰刃口。','斧柄｜觀察是否有裂痕或鬆動。','保護套｜收納前，確認刃口已妥善遮蓋。'];$('#axe-part').onclick=e=>{$('#part-description').textContent=parts[toolStep];toolStep=(toolStep+1)%3;e.currentTarget.textContent=['認識斧刃 →','認識斧柄 →','認識保護套 →'][toolStep]}}else if(id==='carabiner'){$('#tool-demo').innerHTML='<div class="rope-demo"><svg viewBox="0 0 120 160"><path d="M80 20C50 0 20 20 20 50v60c0 55 75 50 75 0V80"/><path id="gate" d="M80 20 95 80"/></svg></div>';$('#tool-actions').innerHTML='<button class="primary" id="gate-toggle" aria-pressed="false">打開掛扣</button>';$('#gate-toggle').onclick=e=>{const on=e.currentTarget.getAttribute('aria-pressed')==='false';$('#gate').setAttribute('d',on?'M45 32 95 80':'M80 20 95 80');e.currentTarget.setAttribute('aria-pressed',on);e.currentTarget.textContent=on?'閉合掛扣':'打開掛扣'}}else if(id==='pouch'){$('#tool-actions').innerHTML=['照明與備用電池','飲水','個人常備用品','緊急聯絡資料'].map((s,i)=>'<label><input type="checkbox" style="width:auto;margin-right:10px" value="'+i+'">'+s+'</label>').join('')}openDialog('tool-dialog')}
+function renderRope(){const paths=['M20 75C65 20 95 130 150 75','M20 30C100 0 140 120 80 130S5 30 70 30s100 65 80 100','M30 20C90 0 110 135 55 135S5 15 65 20s95 90 70 100'];$('#rope-demo').innerHTML='<svg viewBox="0 0 170 160"><path d="'+paths[toolStep]+'"/></svg>';$('#rope-label').textContent=['01 · 找到兩端','02 · 整理繩圈','03 · 收整並檢查'][toolStep]}
+$('.tool-image-wrap').addEventListener('pointermove',e=>{const beam=$('#beam');if(beam){const r=e.currentTarget.getBoundingClientRect();beam.style.setProperty('--beam-x',(e.clientX-r.left)/r.width*100+'%');beam.style.setProperty('--beam-y',(e.clientY-r.top)/r.height*100+'%')}});
+function initAudio(){if(audioCtx){audioCtx.resume();return}try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();const buffer=audioCtx.createBuffer(1,audioCtx.sampleRate*3,audioCtx.sampleRate);let previous=0;for(let i=0;i<buffer.length;i++){previous=(previous+Math.random()*.04-.02)/1.02;buffer.getChannelData(0)[i]=previous*3}const noise=audioCtx.createBufferSource();noise.buffer=buffer;noise.loop=true;const filter=audioCtx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=600;windGain=audioCtx.createGain();windGain.gain.value=.018;noise.connect(filter).connect(windGain).connect(audioCtx.destination);noise.start();audioNodes.push(noise)}catch{sound=false;showToast('這個瀏覽器無法播放環境聲音。')}}
+function tick(frequency,duration){if(!sound||!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=frequency;g.gain.setValueAtTime(.035,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+duration);o.connect(g).connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration)}
+document.addEventListener('visibilitychange',()=>{if(audioCtx)document.hidden?audioCtx.suspend():sound&&audioCtx.resume()});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;if($('#book-dialog').open&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();turnPage(e.key==='ArrowRight'?1:-1)}else if(!document.querySelector('dialog[open]')){if(view==='tv'&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();changeChannel(e.key==='ArrowRight'?1:-1)}else if(e.key==='Escape'&&view!=='outside')go(view==='room'?'outside':'room')}});
+$('#sources').innerHTML=C.sources.map(s=>'<a href="'+s.url+'" target="_blank" rel="noopener noreferrer">'+s.organization+' · '+s.title+' ↗</a>').join('');
+updatePreferences();renderView();
+// Preload only after the entrance is interactive; no video seeks or WebGL dependency.
+window.addEventListener('load',()=>{for(const s of ['room','tools','television']){const i=new Image();i.src='assets/'+s+'.webp'}});
