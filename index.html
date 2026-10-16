@@ -1,82 +1,48 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#102729" />
-  <title>DAY 0 — Taiwan Survival Project</title>
-  <link rel="stylesheet" href="./style.css" />
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080e15"><meta name="description" content="當日常暫停，從 DAY0 開始。走進星空下的求生研究站，翻開手冊、探索工具、切換四大地形。">
+  <title>DAY0｜野外求生研究站</title><link rel="stylesheet" href="style.css"><link rel="preload" as="image" href="assets/outside.webp">
 </head>
 <body>
-  <main id="experience" aria-label="求生互動式開場">
-    <section class="scroll-space" aria-hidden="true"></section>
-
-    <div class="stage" id="stage">
-      <div class="camera-shell" id="cameraShell">
-        <video
-          id="heroVideo"
-          class="hero-video"
-          muted
-          playsinline
-          preload="auto"
-          poster="./assets/poster.jpg"
-          aria-hidden="true"
-        >
-          <source src="./assets/survival-scroll.mp4" type="video/mp4" />
-        </video>
-
-        <div class="cinema-layer cinema-layer--fog"></div>
-        <div class="cinema-layer cinema-layer--vignette"></div>
-        <div class="cinema-layer cinema-layer--grain"></div>
-
-        <header class="topbar hud-layer hud-layer--near">
-          <a class="mark" href="#" aria-label="回到開場">△</a>
-          <div class="top-path">SURVIVAL <i>/</i> LEARN <i>/</i> LIVE</div>
-          <nav class="nav" aria-label="主要導覽">
-            <a href="#about">ABOUT</a><i>/</i><a href="#guide">GUIDE</a><i>/</i><a href="#start">START</a>
-            <button class="menu" type="button" aria-label="開啟選單"><span></span><span></span><span></span></button>
-          </nav>
-        </header>
-
-        <aside class="project-tag hud-layer hud-layer--mid">
-          <span>TAIWAN</span><span>SURVIVAL</span><span>PROJECT</span>
-        </aside>
-
-        <section class="hero-copy hud-layer hud-layer--near" aria-live="polite">
-          <div class="scrape-line"></div>
-          <p class="eyebrow" id="sceneLabel">ENVIRONMENT 01 / FOREST</p>
-          <h1>DAY 0</h1>
-          <p class="subtitle">當文明暫停，你，準備好了嗎？</p>
-          <div class="micro-copy"><span>SURVIVE</span><i>/</i><span>LEARN</span><i>/</i><span>REBUILD</span></div>
-        </section>
-
-        <aside class="manifesto hud-layer hud-layer--far">
-          <span>不是災難教育，</span>
-          <span>而是——</span>
-          <span>讓你在失去依賴的世界，</span>
-          <span>依然活下去。</span>
-        </aside>
-
-        <div class="scene-index hud-layer hud-layer--far" id="sceneIndex">01</div>
-
-        <div class="scroll-hint" id="scrollHint">
-          <div class="mouse-icon" aria-hidden="true"><span></span></div>
-          <div class="wheel-arrow" aria-hidden="true">⌄</div>
-          <p>SCROLL TO MOVE</p>
-          <small>使用滑鼠滾輪推進場景</small>
-        </div>
-
-        <div class="progress-rail" aria-hidden="true">
-          <span class="progress-dot"></span>
-          <span class="progress-fill" id="progressFill"></span>
-          <span class="progress-readout" id="progressReadout">00</span>
-        </div>
-
-        <div class="coord hud-layer hud-layer--mid">23.5°N / 121.0°E<br />TAIWAN</div>
-      </div>
+  <a class="skip" href="#navigation">跳至導覽</a>
+  <main id="experience" data-view="outside" aria-label="DAY0 互動研究站">
+    <div class="ambient" aria-hidden="true"></div>
+    <div class="world" id="world">
+      <img class="scene active" id="scene" src="assets/outside.webp" alt="星空森林中的營地，右側帳篷透出溫暖燈光" fetchpriority="high">
+      <div class="shade" aria-hidden="true"></div><div class="light-glow" aria-hidden="true"></div>
+      <div id="hotspots" class="hotspots"></div>
+      <section id="tv-screen" class="tv-screen" aria-label="地形電視頻道" hidden></section>
+      <div class="fireflies" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
     </div>
+    <div class="vignette" aria-hidden="true"></div>
+    <header class="header">
+      <button class="brand" data-go="outside" aria-label="DAY0 返回營地"><span>DAY<span class="brand-zero">0</span></span><small>SURVIVAL FIELD STATION</small></button>
+      <nav id="navigation" aria-label="主要導覽">
+        <button data-nav="principle"><span>01</span>333 原則</button><button data-nav="tv"><span>02</span>四大地形</button><button data-nav="tools"><span>03</span>工具</button><button data-nav="notebook"><span>04</span>求生技能</button>
+      </nav>
+      <button class="icon-button" id="help-btn" aria-label="操作說明">?</button>
+    </header>
+    <section class="entrance" id="entrance" aria-label="進入研究站">
+      <div class="eyebrow">WHEN THE ORDINARY STOPS.</div>
+      <img class="hero-logo" src="assets/logo.png" alt="DAY0">
+      <p>當日常暫停，找回求生的本能。</p>
+      <button class="start" id="start">START <span aria-hidden="true">↗</span></button>
+      <small>點亮好奇心，走進研究站</small>
+    </section>
+    <div id="room-label" class="room-label" hidden><span id="scene-index">01 / FIELD STATION</span><h1 id="scene-title">帳篷研究桌</h1><p id="scene-hint">每一個物件，都是一段探索的開始。</p></div>
+    <div class="tv-controls" id="tv-controls" hidden><button id="prev-channel" aria-label="上一個地形頻道">←</button><span>CH <b id="channel-number">01</b> / 04</span><button id="next-channel" aria-label="下一個地形頻道">→</button></div>
+    <footer class="footer">
+      <div class="station-status"><i></i><span id="status-text">營地已就緒</span><span class="divider">/</span><span class="station-code">DAY 0 · 00:00</span></div>
+      <button id="back" class="text-button" hidden>← 返回研究桌</button>
+      <div class="settings"><button id="hints" aria-pressed="true">熱點 <b>開</b></button><button id="motion" aria-pressed="true">動態 <b>開</b></button><button id="sound" aria-pressed="false">聲音 <b>關</b></button></div>
+    </footer>
+    <div id="toast" role="status" aria-live="polite"></div>
   </main>
-
-  <script src="./script.js"></script>
-</body>
-</html>
+  <dialog id="book-dialog" class="book-dialog"><button class="close" data-close="book-dialog" aria-label="闔上書本">×</button><div id="book" class="book"><div class="book-left"><span id="book-category" class="eyebrow"></span><span id="book-marker" class="book-marker"></span><div id="book-illustration" aria-hidden="true"></div><h2 id="book-title"></h2><p id="book-lead"></p><small id="book-label"></small></div><div class="book-right"><span class="folio">DAY0 / FIELD NOTES</span><div id="book-copy"></div><div class="page-controls"><button id="prev-page" aria-label="上一頁">←</button><span id="page-count"></span><button id="next-page" aria-label="下一頁">→</button></div></div></div></dialog>
+  <dialog id="tool-dialog" class="tool-dialog"><button class="close" data-close="tool-dialog" aria-label="收起工具">×</button><div class="tool-image-wrap"><img id="tool-image" alt=""><div id="tool-demo"></div></div><section class="tool-copy"><span class="eyebrow" id="tool-english"></span><h2 id="tool-name"></h2><p id="tool-description"></p><p id="tool-instruction" class="tool-instruction"></p><div id="tool-actions"></div><small id="tool-note"></small></section></dialog>
+  <dialog id="help-dialog" class="help-dialog"><button class="close" data-close="help-dialog" aria-label="關閉操作說明">×</button><span class="eyebrow">WELCOME TO DAY0</span><h2>從一個物件開始。</h2><p>移動滑鼠，感受場景的輕微視差。點選亮點或上方導覽，走進研究站。</p><ol><li><b>書本</b><span>翻閱 333 原則；左右箭頭翻頁。</span></li><li><b>筆記本</b><span>認識植物、蛇類與繩結。</span></li><li><b>電視</b><span>切換高山、森林、城市、海洋。</span></li><li><b>工具牆</b><span>選擇工具放大，嘗試互動。</span></li><li><b>燈具</b><span>點一下，切換燈光。</span></li></ol><p class="help-note">可使用 Tab 選取、Enter 開啟、Esc 返回。手機可直接點選。偏好安靜或減少動畫，可調整畫面下方開關。</p><button class="primary" data-close="help-dialog">開始探索 →</button><details><summary>內容來源與閱讀提醒</summary><p>本網站為求生教育互動原型；333 是粗略記憶口訣，不是保證安全的倒數期限。</p><div id="sources"></div></details></dialog>
+  <noscript><div class="noscript">請啟用 JavaScript，以使用 DAY0 的場景探索與翻書功能。</div></noscript>
+  <script type="module" src="script.js"></script>
+</body></html>

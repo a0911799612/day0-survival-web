@@ -1,1 +1,1 @@
-# Assets\n\nPlace the prototype media files here:\n\n- `poster.jpg`\n- `survival-scroll.mp4`\n\nThe page already references these exact paths.\n
+DAY0 使用者提供的場景與 LOGO，已轉換成 WebP。工具圖為工具牆原圖的裁切。

@@ -1,34 +1,30 @@
-# DAY 0 — Survival Scroll Website Prototype
+# DAY0 · 野外求生研究站
 
-這是一個以滑鼠滾輪控制場景進度的求生互動首頁。
+依 2026-10-16 使用者提供的場景、品牌與操作 PDF 製作的互動網站。使用原始圖片中的嵌入影像，轉為 WebP。參考 Felix Rieseberg 網站的物件導覽概念，程式獨立實作。
 
-## V2 順暢度優化
+## 開啟
 
-這次針對「影片跟著滾輪跑很卡」做了兩層優化：
+網站檔案在儲存庫根目錄。可使用 VS Code Live Server 開啟 `index.html`，或在 `` 中執行 `python -m http.server 4173`，再開啟 http://localhost:4173 。因使用 ES modules，不建議以 file:// 直接雙擊。
 
-- 影片改成 1280×720 / H.264 / 30fps。
-- 關鍵影格改為每 3 幀一次，讓隨機 seek 更快。
-- JavaScript 最多只送出 30 次 seek / 秒。
-- 前一次 seek 尚未完成時，不再連續塞入新的 seek 指令。
-- HUD 繼續維持 requestAnimationFrame 更新，所以 UI 仍維持滑順。
-- 移除較吃效能的 hue-rotate / contrast 濾鏡。
+## 互動
 
-## 需要放入 assets 的檔案
+- START：由森林營地推進帳篷。
+- 右側闔上書本：333 原則，左右翻頁。
+- 左側打開的筆記本：植物、蛇類與繩結認識。
+- 電視：四大地形，前後轉台與閱讀環境筆記。
+- 工具牆：指南針、手電筒、繩索、望遠鏡、斧頭、掛扣、收納包。
+- 燈具：切換亮度。下方可切換熱點、動態、環境聲音。
+- Tab / Enter / Esc / 左右方向鍵可操作；手機支援點選。
 
-- `assets/poster.jpg`
-- `assets/survival-scroll.mp4`
+## 實作範圍
 
-請使用 V2 壓縮包中的新版 `survival-scroll.mp4`，檔名保持不變。
+這是以平面素材與 CSS 轉場製作的互動網站，非完整 3D 模型。進入帳篷、轉向工具與電視以圖片推近和淡入銜接。內頁與工具示範為本次新增的教育原型內容；指南針不讀取真實方位，繩索不提供承重或救援教學。333 為粗略記憶口訣，非保證存活的期限。
 
-## 使用方法
+## 修改
 
-1. 用 VS Code 打開整個資料夾。
-2. 安裝 Live Server。
-3. 對 `index.html` 右鍵 → Open with Live Server。
-4. 第一次載入時讓影片先預載一下，再開始滾動會更穩。
+- `content.js`：繁體中文知識內容與官方來源。
+- `script.js`：場景熱點座標、互動狀態與工具。
+- `style.css`：視覺樣式、轉場與響應式版面。
+- `assets/`：使用者提供的最佳化場景、品牌與工具裁切圖。
 
-> 不建議直接用 `file://` 雙擊 HTML 開啟。
-
-## 後續
-
-如果仍希望有更強烈的空間縱深，下一階段可以把這套 scroll controller 保留，改成 Three.js 真 3D 場景。
+音效採瀏覽器 Web Audio 合成，預設關閉。字型使用 Google Fonts；若無網路會使用系統字型。網站本身不蒐集個資，僅在本機儲存動態與熱點偏好。
