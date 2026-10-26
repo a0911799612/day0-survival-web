@@ -4,7 +4,7 @@ on:
     branches: [codex/day0-release-transport-20261026]
     paths: [day0-upload-ready.json]
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: day0-release-assembly-20261026
   cancel-in-progress: false
@@ -12,19 +12,22 @@ jobs:
   assemble:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: a0911799612/day0-survival-web
+    permissions:
+      contents: write
     steps:
-      - name: Download authorized archive fragments
-        run: gh release download day0-upload-staging-20261026 --pattern 'DAY0-original-layout.zip.part*' --dir parts
-      - name: Reassemble and verify original ZIP
+      - name: Fetch the exact transfer commit
+        run: |
+          git init source
+          git -C source remote add origin https://github.com/a0911799612/day0-survival-web.git
+          git -C source fetch --depth=1 origin "$GITHUB_SHA"
+          git -C source checkout --detach FETCH_HEAD
+      - name: Reassemble and verify the original ZIP
         shell: python
         run: |
           from pathlib import Path
           import hashlib
-          parts = sorted(Path("parts").glob("DAY0-original-layout.zip.part*"))
-          expected = [f"DAY0-original-layout.zip.part{i:03d}" for i in range(1, 94)]
+          parts = sorted(Path("source/day0-transfer").glob("DAY0-original-layout.zip.part*"))
+          expected = [f"DAY0-original-layout.zip.part{i:03d}" for i in range(1, 25)]
           assert [p.name for p in parts] == expected, "Missing or unexpected fragments"
           target = Path("DAY0-original-layout.zip")
           with target.open("wb") as output:
@@ -33,5 +36,41 @@ jobs:
           assert target.stat().st_size == 48748281, "Size mismatch"
           assert hashlib.sha256(target.read_bytes()).hexdigest() == "ff0259f1bb6ac0e0c11d20f4d89eecbdd6017eb9c5d34673d9a13d19bb82d3d5", "SHA-256 mismatch"
           print("Original ZIP verified: 48748281 bytes")
-      - name: Attach verified complete ZIP to the existing draft
-        run: gh release upload day0-3d-tv-20261026 DAY0-original-layout.zip
+      - name: Attach the verified ZIP to the existing draft
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import json, os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          expected_digest = "sha256:ff0259f1bb6ac0e0c11d20f4d89eecbdd6017eb9c5d34673d9a13d19bb82d3d5"
+          headers = {
+              "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "DAY0-archive-delivery"
+          }
+          api = "https://api.github.com/repos/a0911799612/day0-survival-web/releases/424437772"
+          with urlopen(Request(api, headers=headers), timeout=60) as response:
+              release = json.load(response)
+          assert release["id"] == 424437772
+          assert release["tag_name"] == "day0-3d-tv-20261026"
+          assert release["draft"] is True, "Release must remain a draft until verification"
+          name = "DAY0-original-layout.zip"
+          existing = [a for a in release["assets"] if a["name"] == name]
+          if existing:
+              asset = existing[0]
+              assert asset["state"] == "uploaded" and asset["size"] == 48748281 and asset.get("digest") == expected_digest, "Existing attachment requires review"
+              print("Matching verified ZIP is already attached")
+          else:
+              data = Path(name).read_bytes()
+              upload_headers = dict(headers, **{"Content-Type": "application/zip", "Content-Length": str(len(data))})
+              endpoint = "https://uploads.github.com/repos/a0911799612/day0-survival-web/releases/424437772/assets?name=" + name
+              with urlopen(Request(endpoint, data=data, headers=upload_headers, method="POST"), timeout=240) as response:
+                  assert response.status == 201, "Unexpected upload response"
+                  asset = json.load(response)
+              assert asset["state"] == "uploaded"
+              assert asset["size"] == 48748281
+              assert asset.get("digest") == expected_digest
+              print("Verified complete ZIP attached to release 424437772")
