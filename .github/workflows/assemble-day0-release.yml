@@ -1,0 +1,37 @@
+name: Assemble DAY0 download
+on:
+  push:
+    branches: [codex/day0-release-transport-20261026]
+    paths: [day0-upload-ready.json]
+permissions:
+  contents: write
+concurrency:
+  group: day0-release-assembly-20261026
+  cancel-in-progress: false
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: a0911799612/day0-survival-web
+    steps:
+      - name: Download authorized archive fragments
+        run: gh release download day0-upload-staging-20261026 --pattern 'DAY0-original-layout.zip.part*' --dir parts
+      - name: Reassemble and verify original ZIP
+        shell: python
+        run: |
+          from pathlib import Path
+          import hashlib
+          parts = sorted(Path("parts").glob("DAY0-original-layout.zip.part*"))
+          expected = [f"DAY0-original-layout.zip.part{i:03d}" for i in range(1, 94)]
+          assert [p.name for p in parts] == expected, "Missing or unexpected fragments"
+          target = Path("DAY0-original-layout.zip")
+          with target.open("wb") as output:
+              for part in parts:
+                  output.write(part.read_bytes())
+          assert target.stat().st_size == 48748281, "Size mismatch"
+          assert hashlib.sha256(target.read_bytes()).hexdigest() == "ff0259f1bb6ac0e0c11d20f4d89eecbdd6017eb9c5d34673d9a13d19bb82d3d5", "SHA-256 mismatch"
+          print("Original ZIP verified: 48748281 bytes")
+      - name: Attach verified complete ZIP to the existing draft
+        run: gh release upload day0-3d-tv-20261026 DAY0-original-layout.zip
